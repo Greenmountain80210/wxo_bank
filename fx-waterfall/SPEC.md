@@ -50,6 +50,7 @@
   start: { time, rate, source: { label, url, quote } },
   end:   { time, rate, source },
   events: [{ id, time, label, category, importance: "high"|"medium"|"low",
+             timeSource?: { label, url },   // イベント発生時刻の出典
              pre, post, preTime?, postTime?, window, description,
              source: { label, url, quote }, confidence: "reported"|"approximate" }],
   series:   [{ time, rate, high?, low?, source? }],     // 任意

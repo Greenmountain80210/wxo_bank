@@ -1,106 +1,144 @@
 (function (root) {
   var datasets = [
     {
-      id: "usdjpy-2024h2",
-      title: "2024年9月〜2025年1月 ドル円",
+      id: "usdjpy-2024-us-election",
+      title: "2024年11月5〜7日 米大統領選とドル円",
       pair: "USD/JPY",
-      description: "2024年9月中旬の140円台前半から2025年1月上旬の158円台まで。報道で確認できたイベントのみ採用。",
+      description: "米大統領選当日(11/5 NY午前)の152円台から、11/6 開票でトランプ氏優勢→勝利宣言へ向かう過程で154円台前半まで上昇し、11/7 FOMC(利下げ)後に153円台前半で落ち着くまでの約53時間。時刻はすべて報道時刻(記事の公開時刻)から読み取った近似値を含む。",
       start: {
-        date: "2024-09-17",
-        rate: 140.61,
+        time: "2024-11-05T14:33:00Z",
+        rate: 152.00,
         source: {
-          label: "VT Markets（ブローカー報道値、公式終値ではない）",
-          url: "https://vtmarkets.com/?p=15031",
-          quote: "closing at 140.610 after hitting an intraday low of 140.320"
+          label: "FXStreet USD/JPY trades flattish near 152.00 on US presidential election day（時刻はURL末尾 202411051433 = 2024-11-05 14:33 GMT から推定）",
+          url: "https://www.fxstreet.com/news/usd-jpy-trades-flattish-near-15200-on-us-presidential-election-day-202411051433",
+          quote: "USD/JPY trades flattish near 152.00 on US presidential election day"
         }
       },
       end: {
-        date: "2025-01-10",
-        rate: 158.27,
+        time: "2024-11-07T19:49:00Z",
+        rate: 153.20,
         source: {
-          label: "FXStreet USD/JPY remains subdued near 158.00 after reaching multi-month high",
-          url: "https://www.fxstreet.com/news/usd-jpy-remains-subdued-near-15800-after-reaching-multi-month-high-202501101506",
-          quote: "the pair trades at 158.27, down 0.09%"
+          label: "FXStreet USD/JPY churns post-Fed rate cut, FOMC delivers 25 bps rate trim（時刻はURL末尾 202411071949 = 2024-11-07 19:49 GMT から推定）",
+          url: "https://www.fxstreet.com/news/usd-jpy-churns-post-fed-rate-cut-fomc-delivers-25-bps-rate-trim-202411071949",
+          quote: "USD/JPY swirled around 153.20 (検索結果の要約による。FOMC声明 19:00 UTC の約49分後)"
         }
       },
       events: [
         {
-          id: "ldp-ishiba-2024",
-          date: "2024-09-27",
-          label: "石破氏が総裁選勝利",
-          category: "日本政治",
-          pre: 146.49, post: 142.94,
-          window: "決選投票の結果発表直前 → 発表直後（東京時間 9/27）",
-          description: "高市氏優勢との観測で円売りが先行していたが、石破氏の勝利で円が急伸した。",
-          source: {
-            label: "Fortune/AFP Yen surges after Defense Minister Shigeru Ishiba Japan prime minister victory",
-            url: "https://fortune.com/asia/2024/09/27/yen-surges-after-defense-minister-shigeru-ishiba-japan-prime-minister-victory",
-            quote: "firming to 142.94 against the dollar from 146.49 yen when the head-to-head between Ishiba and Takaichi was announced"
-          },
-          confidence: "reported"
-        },
-        {
-          id: "us-nfp-sep-2024",
-          date: "2024-10-04",
-          label: "米9月雇用統計 上振れ",
-          category: "米国指標",
-          pre: 146.58, post: 148.18,
-          window: "発表前（約146.58、VT Markets値） → 発表後の報道時点（148.18）",
-          description: "非農業部門雇用者数が+254千人（予想+140千人）と大幅に上振れ、ドル買い・円売りが進んだ。",
-          source: {
-            label: "investingLive US September non-farm payrolls +254K vs +140K expected",
-            url: "https://investinglive.com/news/us-september-non-farm-payrolls-254k-vs-140k-expected-20241004",
-            quote: "USD/JPY up 160 pips since the report to 148.18"
-          },
-          confidence: "approximate"
-        },
-        {
-          id: "japan-election-2024",
-          date: "2024-10-28",
-          label: "衆院選 与党過半数割れ",
-          category: "日本政治",
-          pre: 152.3, post: 153.0,
-          window: "10/25(金)終盤 → 10/28(月)早朝の窓開け直後（投開票は10/27日曜）",
-          description: "自公が過半数を割り込み、日銀の利上げ遅れ観測から円売りが出た。",
-          source: {
-            label: "investingLive USD/JPY is above 153 on the Japanese election result - yen plunge",
-            url: "https://investinglive.com/news/usdjpy-is-above-153-on-the-japanese-election-result-yen-plunge-20241027",
-            quote: "USD/JPY is just above 153.00, a 70 or so point jump from its late Friday level"
-          },
-          confidence: "approximate"
-        },
-        {
-          id: "us-election-2024",
-          date: "2024-11-06",
-          label: "米大統領選 トランプ氏勝利",
+          id: "us-election-early-returns",
+          time: "2024-11-06T00:00:00Z",
+          label: "米大統領選 主要州の投票締切・開票序盤",
+          timeSource: { label: "CNN: Here's when polls close（ジョージア州等は米東部 7 p.m. 締切 = 11/6 00:00 UTC、11/3 に夏時間終了のため EST=UTC-5）", url: "https://amp.cnn.com/cnn/2024/11/05/politics/polls-close-time-election-dg" },
           category: "米国政治",
-          pre: 151.6, post: 154.62,
-          window: "11/5頃の水準（前日比+2.0%からの逆算） → 11/6 北米時間",
-          description: "トランプ氏優勢が固まりドル買いが加速、ドル円は1日で約2%上昇した。",
+          importance: "high",
+          pre: 152.00, post: 153.00,
+          preTime: "2024-11-05T14:33:00Z",
+          postTime: "2024-11-06T01:09:00Z",
+          window: "pre = 11/5 14:33 GMT の記事値（選挙日の水準、開票前）、post = 11/6 01:09 GMT の記事値。イベント時刻 00:00Z はジョージア州など主要州の投票締切（米東部 19:00）。pre は約9.5時間前の値のため、窓には開票前の値動きも含まれる。",
+          description: "開票の初期結果を受け、ドル円は153円付近まで上昇した（記事見出しは「initial US election results」後に円が153.00へ下落）。",
           source: {
-            label: "MarketPulse USD/JPY surges as Trump storms to victory",
-            url: "https://www.marketpulse.com/news/usdjpy-surges-as-trump-storms-to-victory/",
-            quote: "USD/JPY at 154.62, up a massive 2.0% on the day"
+            label: "FXStreet Japanese Yen slumps to 153.00 against USD after initial US election results（時刻はURL末尾 202411060109 から推定。本文は後に更新されている）",
+            url: "https://fxstreet.com/news/japanese-yen-slumps-to-15300-against-usd-after-initial-us-election-results-202411060109",
+            quote: "Japanese Yen slumps to 153.00 against USD after initial US election results"
           },
           confidence: "approximate"
         },
         {
-          id: "boj-hold-2024-12",
-          date: "2024-12-19",
-          label: "日銀据え置き 円売り加速",
-          category: "日銀",
-          pre: 154.67, post: 157.43,
-          window: "12/19 東京始値 → 12/19 終値（前日のFOMCタカ派利下げの影響も含む）",
-          description: "日銀は据え置き、植田総裁が賃金データ待ちを示し1月利上げ観測が後退して円安が進んだ。",
+          id: "trump-claims-victory",
+          time: "2024-11-06T07:24:00Z",
+          label: "トランプ氏が勝利宣言演説",
+          timeSource: { label: "Adweek: Donald Trump declares victory（米東部 2:24 a.m. に登壇 = 11/6 07:24 UTC）", url: "https://www.adweek.com/tvnewser/donald-trump-declares-victory/" },
+          category: "米国政治",
+          importance: "high",
+          pre: 153.00, post: 154.40,
+          preTime: "2024-11-06T01:09:00Z",
+          postTime: "2024-11-06T09:57:00Z",
+          window: "pre = 11/6 01:09 GMT の記事値(153.00)、post = 11/6 09:57 GMT の記事値(154.40付近、欧州時間序盤)。イベント時刻 07:24Z はトランプ氏が勝利宣言演説に登壇した時刻（米東部 2:24 a.m.）。pre は約6時間前、post は約2.5時間後の値のため、窓には演説以外の値動きも含まれる。AP の全国報道の確定は米東部 5:31〜5:35 (= 10:31〜10:35 UTC)と報じられ、post 記事より後のため、この区間は「勝利が見通された段階」の反応であり単一の発表直前直後ではない。",
+          description: "トランプ氏の勝利が見通される中、ドル円は約4か月ぶり高値の154.40付近へ上昇した。",
           source: {
-            label: "三菱UFJ銀行 FXデイリー 2024/12/19",
-            url: "https://www.bk.mufg.jp/report/dmr2024/FXDaily20241219.pdf",
-            quote: "ドル円は154.67で寄り付いた後、会見後に157円台に到達し、高値は157.80、終値は157.43（検索結果の要約による）"
+            label: "FXStreet USD/JPY surges to near 154.40 as US Trump claims victory over Democrats（時刻はURL末尾 202411060957 から推定）",
+            url: "https://www.fxstreet.com/news/usd-jpy-surges-to-near-15440-as-us-trump-claims-victory-over-democrats-202411060957",
+            quote: "The USD/JPY pair refreshes a four-month high near 154.40 in European trading hours on Wednesday."
           },
           confidence: "approximate"
         }
       ],
-      notes: "各値は検索結果の本文抜粋に基づく。取得時刻（東京・NY・ブローカー値）が揃っていないため厳密な終値比較ではない。採用イベントの合計が全体変動を大きく下回り、その他要因が大きいのは、9/18 FOMC（荒い値動きで単一の前後値が取れず見送り）や10月下旬〜11月の米金利上昇などが含まれるため。"
+      series: [
+        {
+          time: "2024-11-05T14:33:00Z", rate: 152.00,
+          source: {
+            label: "FXStreet（時刻はURL末尾から推定）",
+            url: "https://www.fxstreet.com/news/usd-jpy-trades-flattish-near-15200-on-us-presidential-election-day-202411051433",
+            quote: "USD/JPY trades flattish near 152.00 on US presidential election day"
+          }
+        },
+        {
+          time: "2024-11-06T01:09:00Z", rate: 153.00,
+          source: {
+            label: "FXStreet（時刻はURL末尾から推定）",
+            url: "https://fxstreet.com/news/japanese-yen-slumps-to-15300-against-usd-after-initial-us-election-results-202411060109",
+            quote: "Japanese Yen slumps to 153.00 against USD after initial US election results"
+          }
+        },
+        {
+          time: "2024-11-06T09:57:00Z", rate: 154.40,
+          source: {
+            label: "FXStreet（時刻はURL末尾から推定）",
+            url: "https://www.fxstreet.com/news/usd-jpy-surges-to-near-15440-as-us-trump-claims-victory-over-democrats-202411060957",
+            quote: "refreshes a four-month high near 154.40 in European trading hours on Wednesday"
+          }
+        },
+        {
+          time: "2024-11-07T19:49:00Z", rate: 153.20,
+          source: {
+            label: "FXStreet（時刻はURL末尾から推定）",
+            url: "https://www.fxstreet.com/news/usd-jpy-churns-post-fed-rate-cut-fomc-delivers-25-bps-rate-trim-202411071949",
+            quote: "USD/JPY swirled around 153.20（検索結果の要約）"
+          }
+        }
+      ],
+      upcoming: [
+        {
+          time: "2024-11-08T15:00:00Z",
+          label: "米ミシガン大消費者信頼感指数(11月速報)",
+          importance: "medium",
+          source: {
+            label: "FXStreet US UoM consumer confidence index improves to 73 in November vs 71 expected（記事時刻 202411081505 = 15:05 GMT。発表は米東部 10:00 = 15:00 UTC と推定）",
+            url: "https://www.fxstreet.com/news/us-uom-consumer-confidence-index-improves-to-73-in-november-vs-71-expected-202411081505",
+            quote: "US UoM consumer confidence index improves to 73 in November vs 71 expected"
+          }
+        }
+      ],
+      levels: [
+        {
+          rate: 154.40,
+          label: "11/6 の約4か月ぶり高値(報道値)",
+          source: {
+            label: "FXStreet",
+            url: "https://www.fxstreet.com/news/usd-jpy-surges-to-near-15440-as-us-trump-claims-victory-over-democrats-202411060957",
+            quote: "refreshes a four-month high near 154.40"
+          }
+        },
+        {
+          rate: 160.245,
+          label: "2024/4/29 円安値。政府・日銀が円買い介入(4/29 に5.92兆円、5/1 に3.87兆円)",
+          source: {
+            label: "Japan Times / 検索結果の要約",
+            url: "https://japantimes.co.jp/business/2024/08/07/markets/april-yen-buying-intervention",
+            quote: "the yen hit 160.245 per dollar on April 29 ... Japan spent a record 5.92 trillion yen on a single-day yen-buying intervention on April 29 and a further 3.87 trillion yen on May 1"
+          }
+        },
+        {
+          rate: 161.76,
+          label: "2024/7/11 以降の介入前の円安水準(7月の介入額5.53兆円)",
+          source: {
+            label: "Investing.com / 検索結果の要約",
+            url: "https://investing.com/news/economy-news/japan-spent-368-billion-in-july-intervention-official-data-shows-3545625",
+            quote: "the yen shot from as low as 161.76 per dollar to as high as 157.30 ... Japanese authorities spent 5.53 trillion yen"
+          }
+        }
+      ],
+      notes: "各値は WebSearch の本文抜粋のみで確認。FXStreet の時刻は URL 末尾の YYYYMMDDHHMM(GMT) からの推定で、価格は記事公開時の大まかな水準(約)。FOMC(11/7 19:00 UTC、4.50-4.75%への25bp利下げ)は、声明直前の価格が取れなかったためイベントにせず、B時点(声明の約49分後)の値のみ使用。ゆえにその他要因(約-1.2円)には 11/6 北米時間〜11/7 の押し戻しと FOMC の影響が含まれる。個別イベントの寄与は粗く、天井・底は事後にしか確定しない。"
     }
   ];
   if (typeof module !== 'undefined' && module.exports) module.exports = datasets;
