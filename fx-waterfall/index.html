@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ドル円 要因分解</title>
+  <meta name="description" content="USD/JPY の A 時点から B 時点までの値動きを円安要因・円高要因に分解し、ウォーターフォールチャートで示します。">
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f9f9f7;
+      --surface: #fcfcfb;
+      --surface-2: #f3f2ee;
+      --text: #0b0b0b;
+      --text-2: #52514e;
+      --muted: #7a7873;
+      --border: rgba(11, 11, 11, 0.10);
+      --border-strong: rgba(11, 11, 11, 0.22);
+      --accent: #2a78d6;
+      --accent-ink: #1c5cab;
+      --weak: #e34948;
+      --strong: #2a78d6;
+      --residual: #a3a29b;
+      --total: #52514e;
+      --warn-bg: #fff6e0;
+      --warn-border: #eda100;
+      --error-bg: #fdecec;
+      --error-border: #d03b3b;
+      --focus: #2a78d6;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:where(:not([data-theme="light"])) {
+        color-scheme: dark;
+        --page: #0d0d0d;
+        --surface: #1a1a19;
+        --surface-2: #242423;
+        --text: #f0efec;
+        --text-2: #c3c2b7;
+        --muted: #9a988f;
+        --border: rgba(255, 255, 255, 0.10);
+        --border-strong: rgba(255, 255, 255, 0.24);
+        --accent: #3987e5;
+        --accent-ink: #86b6ef;
+        --weak: #e66767;
+        --strong: #3987e5;
+        --residual: #6e6d68;
+        --total: #c3c2b7;
+        --warn-bg: #2b2412;
+        --warn-border: #c98500;
+        --error-bg: #2d1717;
+        --error-border: #e66767;
+        --focus: #3987e5;
+      }
+    }
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --page: #0d0d0d;
+      --surface: #1a1a19;
+      --surface-2: #242423;
+      --text: #f0efec;
+      --text-2: #c3c2b7;
+      --muted: #9a988f;
+      --border: rgba(255, 255, 255, 0.10);
+      --border-strong: rgba(255, 255, 255, 0.24);
+      --accent: #3987e5;
+      --accent-ink: #86b6ef;
+      --weak: #e66767;
+      --strong: #3987e5;
+      --residual: #6e6d68;
+      --total: #c3c2b7;
+      --warn-bg: #2b2412;
+      --warn-border: #c98500;
+      --error-bg: #2d1717;
+      --error-border: #e66767;
+      --focus: #3987e5;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+    a { color: var(--accent-ink); }
+    :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    .wrap { max-width: 1040px; margin: 0 auto; padding: 24px 16px 48px; }
+    header h1 { font-size: 22px; line-height: 1.35; margin: 0 0 4px; font-weight: 700; }
+    header p { margin: 0; color: var(--text-2); font-size: 14px; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+    .card > h2, section > h2 { font-size: 16px; margin: 0 0 12px; font-weight: 700; }
+    h3 { font-size: 14px; margin: 16px 0 8px; }
+
+    /* ツールバー */
+    .toolbar { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: flex-end; margin-top: 20px; }
+    .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .field > span, .field-label { font-size: 12px; color: var(--text-2); font-weight: 600; }
+    select, input[type="text"], input[type="url"], input[type="date"], input[type="number"] {
+      font: inherit; font-size: 14px; color: var(--text); background: var(--surface);
+      border: 1px solid var(--border-strong); border-radius: 8px; padding: 6px 10px; min-height: 36px;
+      max-width: 100%; min-width: 0;
+    }
+    #dataset-select { min-width: 0; width: 100%; max-width: 420px; }
+    .seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 8px; overflow: hidden; }
+    .seg label { position: relative; }
+    .seg input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+    .seg span { display: block; padding: 6px 12px; font-size: 14px; min-height: 34px; line-height: 22px; cursor: pointer; }
+    .seg label + label span { border-left: 1px solid var(--border-strong); }
+    .seg input:checked + span { background: var(--text); color: var(--surface); font-weight: 600; }
+    .seg input:focus-visible + span { outline: 2px solid var(--focus); outline-offset: -2px; }
+    .btn {
+      font: inherit; font-size: 14px; color: var(--text); background: var(--surface);
+      border: 1px solid var(--border-strong); border-radius: 8px; padding: 6px 12px; min-height: 36px;
+      cursor: pointer; white-space: nowrap;
+    }
+    .btn:hover { background: var(--surface-2); }
+    .btn-primary { background: var(--text); color: var(--surface); border-color: var(--text); }
+    .btn-primary:hover { background: var(--text-2); }
+    .btn-danger { color: var(--error-border); }
+    .file-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .visually-hidden { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .dataset-desc { color: var(--text-2); font-size: 14px; margin: 12px 0 0; }
+
+    /* サマリー */
+    #summary-headline { font-size: 20px; font-weight: 700; line-height: 1.4; margin: 0; }
+    #summary-headline .arrow { color: var(--muted); font-weight: 400; white-space: pre; }
+    #summary-headline .delta { font-weight: 600; }
+    .summary-dates { color: var(--text-2); font-size: 13px; margin: 2px 0 0; }
+    .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 14px; }
+    .tile { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; background: var(--surface); }
+    .tile-label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); }
+    .tile-value { font-size: 20px; font-weight: 600; margin-top: 2px; }
+    .tile-sub { font-size: 12px; color: var(--muted); }
+    .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; flex: none; }
+    .sw-weak { background: var(--weak); } .sw-strong { background: var(--strong); }
+    .sw-residual { background: var(--residual); } .sw-total { background: var(--total); }
+
+    /* 警告 */
+    .alert { border-radius: 10px; padding: 10px 14px; margin-top: 16px; font-size: 14px; border: 1px solid; }
+    .alert ul { margin: 4px 0 0; padding-left: 20px; }
+    .alert strong { display: block; }
+    .alert-warn { background: var(--warn-bg); border-color: var(--warn-border); }
+    .alert-error { background: var(--error-bg); border-color: var(--error-border); }
+    .alert-info { background: var(--surface); border-color: var(--border-strong); }
+
+    /* チャート */
+    #chart { min-height: 120px; }
+    .chart-empty { color: var(--text-2); padding: 24px 0; }
+
+    /* 表 */
+    .table-wrap { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; }
+    th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    th { font-size: 12px; color: var(--text-2); font-weight: 600; white-space: nowrap; }
+    td.cell-date { white-space: nowrap; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    tr[data-row-kind="start"] td, tr[data-row-kind="end"] td { font-weight: 600; }
+    tfoot td { font-weight: 600; border-bottom: none; }
+    .dir-tag { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+    td a { word-break: break-all; }
+    @media (max-width: 640px) {
+      #result-table thead { display: none; }
+      #result-table, #result-table tbody, #result-table tfoot, #result-table tr, #result-table td { display: block; width: 100%; }
+      #result-table tr { border-bottom: 1px solid var(--border); padding: 8px 0; }
+      #result-table td { border: none; padding: 2px 0; text-align: left; white-space: normal; display: flex; gap: 8px; }
+      #result-table td::before { content: attr(data-label); flex: 0 0 6.5em; color: var(--text-2); font-size: 12px; font-weight: 600; }
+      #result-table td.cell-label::before { display: none; }
+      #result-table td.cell-label { font-weight: 600; font-size: 14px; }
+      #result-table td[data-empty] { display: none; }
+    }
+    @media (max-width: 520px) {
+      .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+      .tile { padding: 8px; }
+      .tile-label { font-size: 11px; align-items: flex-start; }
+      .tile-label .swatch { width: 10px; height: 10px; margin-top: 3px; }
+      .tile-value { font-size: 16px; }
+      .tile-sub { font-size: 11px; }
+      #summary-headline { font-size: 18px; }
+    }
+
+    /* エディタ */
+    .ab-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+    .ab-grid fieldset { border: 1px solid var(--border); border-radius: 10px; margin: 0; padding: 10px 12px 12px; min-width: 0; }
+    .ab-grid legend { font-weight: 700; font-size: 13px; padding: 0 4px; }
+    .ab-grid .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .event-list { display: flex; flex-direction: column; gap: 10px; }
+    .event-row {
+      border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; background: var(--surface);
+      display: grid; gap: 8px;
+      grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 0.8fr) minmax(0, 0.8fr);
+    }
+    .event-row .f-url { grid-column: 1 / 4; }
+    .event-row .row-foot { grid-column: 4 / 6; display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; }
+    .event-row input, .event-row select { width: 100%; }
+    .event-yen { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; display: inline-flex; align-items: center; gap: 6px; padding-bottom: 8px; }
+    @media (max-width: 720px) {
+      .event-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+      .event-row .f-label, .event-row .f-url { grid-column: 1 / -1; }
+      .event-row .row-foot { grid-column: 1 / -1; }
+    }
+    .editor-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+    /* 空状態 */
+    #empty-state { text-align: center; padding: 40px 16px; }
+    #empty-state p { color: var(--text-2); }
+    #empty-state .file-actions { justify-content: center; }
+
+    .notes { font-size: 14px; color: var(--text-2); }
+    .notes ul { padding-left: 20px; margin: 6px 0; }
+    .notes li { margin: 4px 0; }
+    .status { font-size: 13px; color: var(--text-2); margin-top: 8px; min-height: 1em; }
+    .data-notes { font-size: 13px; color: var(--text-2); margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>ドル円（USD/JPY）要因分解ウォーターフォール</h1>
+      <p>A 時点から B 時点までの値動きを、出来事ごとの円安要因・円高要因に分解して現在のレートを説明します。</p>
+    </header>
+
+    <div class="toolbar" id="toolbar">
+      <label class="field" style="flex:1 1 260px">
+        <span>データセット</span>
+        <select id="dataset-select" aria-label="データセット"></select>
+      </label>
+      <fieldset class="field" id="order-toggle" style="border:0;padding:0;margin:0">
+        <legend class="field-label" style="padding:0;margin-bottom:4px">並び順</legend>
+        <div class="seg">
+          <label><input type="radio" name="order" id="order-chronological" value="chronological" checked><span>時系列</span></label>
+          <label><input type="radio" name="order" id="order-magnitude" value="magnitude"><span>影響の大きい順</span></label>
+        </div>
+      </fieldset>
+      <div class="field">
+        <span>ファイル</span>
+        <div class="file-actions">
+          <button type="button" class="btn" id="json-load">JSON を読み込む</button>
+          <button type="button" class="btn" id="json-export">JSON を書き出す</button>
+          <button type="button" class="btn" id="csv-load">価格 CSV で補完</button>
+        </div>
+      </div>
+      <input type="file" id="json-file" accept=".json,application/json" class="visually-hidden" tabindex="-1" aria-hidden="true">
+      <input type="file" id="csv-file" accept=".csv,text/csv,text/plain" class="visually-hidden" tabindex="-1" aria-hidden="true">
+    </div>
+    <p class="status" id="file-status" role="status" aria-live="polite"></p>
+
+    <section id="empty-state" class="card" hidden>
+      <h2>データを読み込んでください</h2>
+      <p>サンプルデータ（data/datasets.js）が見つかりませんでした。データセットの JSON を読み込むか、空のデータセットから作成してください。</p>
+      <div class="file-actions">
+        <button type="button" class="btn btn-primary" id="empty-json-load">JSON を読み込む</button>
+        <button type="button" class="btn" id="empty-new">空のデータセットを作成</button>
+      </div>
+    </section>
+
+    <main id="workspace" hidden>
+      <p class="dataset-desc" id="dataset-desc"></p>
+
+      <section class="card" id="summary" aria-labelledby="summary-title">
+        <h2 id="summary-title" class="visually-hidden">サマリー</h2>
+        <p id="summary-headline"></p>
+        <p class="summary-dates" id="summary-dates"></p>
+        <div class="tiles">
+          <div class="tile" id="tile-weak">
+            <div class="tile-label"><span class="swatch sw-weak" aria-hidden="true"></span>円安要因の合計</div>
+            <div class="tile-value" id="sum-weak"></div>
+            <div class="tile-sub" id="sum-weak-sub"></div>
+          </div>
+          <div class="tile" id="tile-strong">
+            <div class="tile-label"><span class="swatch sw-strong" aria-hidden="true"></span>円高要因の合計</div>
+            <div class="tile-value" id="sum-strong"></div>
+            <div class="tile-sub" id="sum-strong-sub"></div>
+          </div>
+          <div class="tile" id="tile-residual">
+            <div class="tile-label"><span class="swatch sw-residual" aria-hidden="true"></span>その他要因</div>
+            <div class="tile-value" id="sum-residual"></div>
+            <div class="tile-sub" id="sum-residual-sub">イベント外の値動きの合計</div>
+          </div>
+        </div>
+      </section>
+
+      <div id="errors" class="alert alert-error" role="alert" hidden></div>
+      <div id="warnings" class="alert alert-warn" hidden></div>
+
+      <section class="card" aria-labelledby="chart-title">
+        <h2 id="chart-title">要因分解チャート</h2>
+        <div id="chart"></div>
+      </section>
+
+      <section class="card" aria-labelledby="table-title">
+        <h2 id="table-title">数値の一覧</h2>
+        <div class="table-wrap">
+          <table id="result-table">
+            <caption class="visually-hidden">各要因の寄与（チャートと同じ数値）</caption>
+            <thead>
+              <tr>
+                <th scope="col">要因</th>
+                <th scope="col">日付</th>
+                <th scope="col">区分</th>
+                <th scope="col">方向</th>
+                <th scope="col" class="num">前 → 後</th>
+                <th scope="col" class="num">寄与（円）</th>
+                <th scope="col" class="num">寄与（%）</th>
+                <th scope="col" class="num">累積</th>
+                <th scope="col">出典</th>
+              </tr>
+            </thead>
+            <tbody id="result-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card" id="editor" aria-labelledby="editor-title">
+        <h2 id="editor-title">データの編集</h2>
+        <p class="notes" style="margin-top:0">値を変更するとチャートとサマリーが即時に再計算されます。</p>
+        <div class="ab-grid">
+          <fieldset>
+            <legend>A 時点（起点）</legend>
+            <div class="pair">
+              <label class="field"><span>日付</span><input type="date" id="start-date"></label>
+              <label class="field"><span>レート（円）</span><input type="number" id="start-rate" step="0.01" inputmode="decimal"></label>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>B 時点（現在）</legend>
+            <div class="pair">
+              <label class="field"><span>日付</span><input type="date" id="end-date"></label>
+              <label class="field"><span>レート（円）</span><input type="number" id="end-rate" step="0.01" inputmode="decimal"></label>
+            </div>
+          </fieldset>
+        </div>
+        <h3>イベント</h3>
+        <div class="event-list" id="events-editor"></div>
+        <div class="editor-actions">
+          <button type="button" class="btn" id="add-event">＋ イベントを追加</button>
+          <button type="button" class="btn" id="reset-dataset">編集を元に戻す</button>
+        </div>
+      </section>
+
+      <section class="card notes" id="method-notes" aria-labelledby="notes-title">
+        <h2 id="notes-title" style="color:var(--text)">分解手法と限界</h2>
+        <ul>
+          <li><strong>イベントの寄与</strong> = イベント直後のレート（後）− 直前のレート（前）。寄与率は A 時点のレートに対する割合で、各要因の寄与率を足すと A→B の変化率に一致します。</li>
+          <li><strong>その他要因</strong> = （B − A）− イベント寄与の合計。イベント窓の外で生じた値動きの合計で、金利差・需給・他のニュースなどを含みます。</li>
+          <li>イベント窓の値動きには、同じ時間帯に出た他のニュースや指標の影響も含まれます。この分解は<strong>因果関係を厳密に特定するものではありません</strong>。</li>
+          <li>同じ日に前後レートが同一のイベントは 1 本に統合し、二重計上しません。同日で前後レートが異なる場合は警告を表示します（区間が重なると二重計上になる可能性があります）。</li>
+          <li>A 時点より後・B 時点以前（A &lt; 日付 ≦ B）のイベントのみを採用します。</li>
+          <li>価格 CSV（FRED DEXJPUS 形式: <code>observation_date,DEXJPUS</code>）を読み込むと、各イベントの「前」をイベント日より前の直近観測値、「後」をイベント日（なければ次）の観測値で補完します。</li>
+        </ul>
+        <p class="data-notes" id="dataset-notes"></p>
+      </section>
+    </main>
+  </div>
+
+  <script src="data/datasets.js"></script>
+  <script src="waterfall.js"></script>
+  <script src="chart.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

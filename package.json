@@ -1,0 +1,9 @@
+{
+  "name": "wxo-bank",
+  "version": "1.0.0",
+  "private": true,
+  "description": "watsonx Orchestrate デモ銀行の静的ページと USD/JPY 要因分解ウォーターフォール",
+  "scripts": {
+    "test": "node --test fx-waterfall/test/"
+  }
+}
