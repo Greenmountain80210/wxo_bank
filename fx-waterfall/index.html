@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ドル円 要因分解</title>
-  <meta name="description" content="USD/JPY の A 時点から B 時点までの値動きを円安要因・円高要因に分解し、ウォーターフォールチャートで示します。">
+  <title>ドル円 短期要因分解</title>
+  <meta name="description" content="USD/JPY の A 時点から B 時点（5分〜5日）の値動きを、イベントごとの円安要因・円高要因とその他要因に pips で分解し、価格推移と合わせて示します。">
   <style>
     :root {
       color-scheme: light;
@@ -104,7 +104,7 @@
     .toolbar { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: flex-end; margin-top: 20px; }
     .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
     .field > span, .field-label { font-size: 12px; color: var(--text-2); font-weight: 600; }
-    select, input[type="text"], input[type="url"], input[type="date"], input[type="number"] {
+    select, input[type="text"], input[type="url"], input[type="date"], input[type="datetime-local"], input[type="number"] {
       font: inherit; font-size: 14px; color: var(--text); background: var(--surface);
       border: 1px solid var(--border-strong); border-radius: 8px; padding: 6px 10px; min-height: 36px;
       max-width: 100%; min-width: 0;
@@ -191,21 +191,36 @@
     .ab-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
     .ab-grid fieldset { border: 1px solid var(--border); border-radius: 10px; margin: 0; padding: 10px 12px 12px; min-width: 0; }
     .ab-grid legend { font-weight: 700; font-size: 13px; padding: 0 4px; }
-    .ab-grid .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .ab-grid .pair { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 8px; }
+    .ab-grid .pair input { width: 100%; }
+    .ab-extra { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 12px; color: var(--text-2); }
     .event-list { display: flex; flex-direction: column; gap: 10px; }
     .event-row {
       border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; background: var(--surface);
       display: grid; gap: 8px;
-      grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 0.8fr) minmax(0, 0.8fr);
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1.6fr) minmax(0, 0.7fr) minmax(0, 1fr) minmax(0, 0.8fr) minmax(0, 0.8fr);
     }
-    .event-row .f-url { grid-column: 1 / 4; }
-    .event-row .row-foot { grid-column: 4 / 6; display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; }
-    .event-row input, .event-row select { width: 100%; }
+    .event-row .f-url { grid-column: 1 / 5; }
+    .event-row .row-foot { grid-column: 5 / 7; display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; }
+    .event-row input, .event-row select, .mini-row input, .mini-row select { width: 100%; }
     .event-yen { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; display: inline-flex; align-items: center; gap: 6px; padding-bottom: 8px; }
+    .mini-row {
+      border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; background: var(--surface);
+      display: grid; gap: 8px; align-items: end;
+    }
+    .upcoming-row { grid-template-columns: minmax(0, 1.4fr) minmax(0, 2fr) minmax(0, 0.8fr) auto; }
+    .level-row { grid-template-columns: minmax(0, 0.8fr) minmax(0, 2fr) auto; }
     @media (max-width: 720px) {
       .event-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-      .event-row .f-label, .event-row .f-url { grid-column: 1 / -1; }
+      .event-row .f-label, .event-row .f-time, .event-row .f-url { grid-column: 1 / -1; }
       .event-row .row-foot { grid-column: 1 / -1; }
+      .upcoming-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+      .upcoming-row .f-label, .upcoming-row .f-time { grid-column: 1 / -1; }
+      .upcoming-row .f-label { order: -1; }
+      .upcoming-row .btn { justify-self: start; }
+      .ab-grid .pair { grid-template-columns: minmax(0, 1fr); }
+      .level-row { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
+      .level-row .btn { grid-column: 1 / -1; justify-self: start; }
     }
     .editor-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 
@@ -219,20 +234,80 @@
     .notes li { margin: 4px 0; }
     .status { font-size: 13px; color: var(--text-2); margin-top: 8px; min-height: 1em; }
     .data-notes { font-size: 13px; color: var(--text-2); margin-top: 10px; }
+  
+    /* 期間・TZ */
+    .period { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; margin: 6px 0 0; }
+    .period[data-state="error"] { color: var(--error-border); }
+    .disclaimer-top { font-size: 12px; color: var(--muted); margin-top: 6px !important; }
+    .price-tools { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-end; border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 12px; margin: 12px 0 0; min-width: 0; background: var(--surface); }
+    .price-tools legend { font-weight: 700; font-size: 13px; padding: 0 4px; }
+    .csv-format { font-size: 13px; color: var(--text-2); flex: 1 1 100%; margin: 0; min-height: 1em; }
+
+    /* 売りエントリーの判断材料 */
+    .panel-head { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+    .panel-head h2 { margin: 0; font-size: 16px; }
+    .badge { font-size: 12px; font-weight: 600; border: 1px solid var(--border-strong); border-radius: 999px; padding: 2px 10px; color: var(--text-2); white-space: nowrap; }
+    .badge[data-basis="points"] { border-color: var(--warn-border); background: var(--warn-bg); color: var(--text); }
+    .sp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+    .tile-sub { overflow-wrap: anywhere; }
+    .sp-grid .tile-value { font-variant-numeric: tabular-nums; }
+    .sp-grid .tile-sub { font-variant-numeric: tabular-nums; }
+    .meter { position: relative; height: 8px; border-radius: 4px; background: var(--surface-2); border: 1px solid var(--border); margin: 8px 0 4px; }
+    .meter-mark { position: absolute; top: -4px; width: 4px; height: 14px; margin-left: -2px; border-radius: 2px; background: var(--text); }
+    .meter-ends { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .mom-list { list-style: none; margin: 4px 0 0; padding: 0; font-variant-numeric: tabular-nums; }
+    .mom-list li { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; }
+    .mom-list li span:first-child { color: var(--text-2); font-size: 13px; white-space: nowrap; }
+    .mom-list li strong { white-space: nowrap; }
+    .mom-list li strong { font-weight: 600; }
+    .imp-tag { display: inline-block; font-size: 11px; font-weight: 600; border: 1px solid var(--border-strong); border-radius: 4px; padding: 0 5px; margin-left: 4px; color: var(--text-2); vertical-align: 1px; }
+    .imp-tag[data-importance="high"] { color: var(--text); border-color: var(--text); }
+    .sp-list { list-style: none; margin: 0; padding: 0; font-size: 14px; }
+    .sp-list li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+    .sp-list li .num { font-variant-numeric: tabular-nums; font-weight: 600; }
+    #sp-reactions td, #sp-reactions th { font-size: 13px; }
+    .sp-notes { font-size: 13px; color: var(--text-2); padding-left: 20px; margin: 12px 0 0; }
+    .sp-notes li { margin: 3px 0; }
+    .sp-notes li[data-kind="warning"] { color: var(--text); }
+    .disclaimer { margin: 12px 0 0; padding: 8px 12px; border-radius: 8px; background: var(--surface-2); font-size: 13px; font-weight: 600; color: var(--text); }
+    @media (max-width: 640px) {
+      #sp-reactions thead { display: none; }
+      #sp-reactions, #sp-reactions tbody, #sp-reactions tr, #sp-reactions td { display: block; width: 100%; }
+      #sp-reactions tr { border-bottom: 1px solid var(--border); padding: 6px 0; }
+      #sp-reactions td { border: none; padding: 1px 0; display: flex; gap: 8px; text-align: left; white-space: normal; }
+      #sp-reactions td::before { content: attr(data-label); flex: 0 0 6.5em; color: var(--text-2); font-size: 12px; font-weight: 600; }
+      #sp-reactions td.cell-label::before { display: none; }
+      #sp-reactions td.cell-label { font-weight: 600; }
+      .sp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+      .sp-grid .tile { padding: 8px; }
+      .sp-grid .tile-value { font-size: 17px; }
+      .sp-grid .tile.span-2 { grid-column: 1 / -1; }
+    }
+    #price-chart { min-height: 120px; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <header>
-      <h1>ドル円（USD/JPY）要因分解ウォーターフォール</h1>
-      <p>A 時点から B 時点までの値動きを、出来事ごとの円安要因・円高要因に分解して現在のレートを説明します。</p>
+      <h1>ドル円（USD/JPY）短期 要因分解</h1>
+      <p>A 時点から B 時点（5分〜5日）の値動きを、イベントごとの円安要因・円高要因とその他要因に pips で分解し、価格推移と並べて示します。</p>
+      <p class="disclaimer-top" id="disclaimer-top">本ツールは過去データの集計であり、将来の値動きの予測や売買の推奨ではありません。</p>
     </header>
 
     <div class="toolbar" id="toolbar">
-      <label class="field" style="flex:1 1 260px">
+      <label class="field" style="flex:1 1 240px">
         <span>データセット</span>
         <select id="dataset-select" aria-label="データセット"></select>
       </label>
+      <fieldset class="field" id="tz-toggle" style="border:0;padding:0;margin:0">
+        <legend class="field-label" style="padding:0;margin-bottom:4px">表示タイムゾーン</legend>
+        <div class="seg">
+          <label><input type="radio" name="tz" id="tz-jst" value="Asia/Tokyo" checked><span>JST</span></label>
+          <label><input type="radio" name="tz" id="tz-utc" value="UTC"><span>UTC</span></label>
+          <label><input type="radio" name="tz" id="tz-ny" value="America/New_York"><span>NY</span></label>
+        </div>
+      </fieldset>
       <fieldset class="field" id="order-toggle" style="border:0;padding:0;margin:0">
         <legend class="field-label" style="padding:0;margin-bottom:4px">並び順</legend>
         <div class="seg">
@@ -245,12 +320,40 @@
         <div class="file-actions">
           <button type="button" class="btn" id="json-load">JSON を読み込む</button>
           <button type="button" class="btn" id="json-export">JSON を書き出す</button>
-          <button type="button" class="btn" id="csv-load">価格 CSV で補完</button>
         </div>
       </div>
       <input type="file" id="json-file" accept=".json,application/json" class="visually-hidden" tabindex="-1" aria-hidden="true">
-      <input type="file" id="csv-file" accept=".csv,text/csv,text/plain" class="visually-hidden" tabindex="-1" aria-hidden="true">
+      <input type="file" id="csv-file" accept=".csv,.txt,text/csv,text/plain,text/tab-separated-values" class="visually-hidden" tabindex="-1" aria-hidden="true">
     </div>
+
+    <fieldset class="price-tools" id="price-tools">
+      <legend>価格 CSV（MT4 / MT5 / TradingView / 汎用）</legend>
+      <label class="field">
+        <span>CSV の時刻のタイムゾーン</span>
+        <select id="csv-tz">
+          <option value="UTC">UTC</option>
+          <option value="Asia/Tokyo">日本時間（JST）</option>
+          <option value="America/New_York">ニューヨーク（夏時間対応）</option>
+          <option value="+02:00">MT4/MT5 サーバー時間 +02:00</option>
+          <option value="+03:00">MT4/MT5 サーバー時間 +03:00</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>イベント後の窓</span>
+        <select id="csv-window">
+          <option value="1">1 分</option>
+          <option value="5" selected>5 分</option>
+          <option value="15">15 分</option>
+          <option value="30">30 分</option>
+          <option value="60">60 分</option>
+        </select>
+      </label>
+      <div class="field">
+        <span>&nbsp;</span>
+        <button type="button" class="btn" id="csv-load">価格 CSV を読み込む</button>
+      </div>
+      <p class="csv-format" id="csv-format" aria-live="polite"></p>
+    </fieldset>
     <p class="status" id="file-status" role="status" aria-live="polite"></p>
 
     <section id="empty-state" class="card" hidden>
@@ -268,6 +371,7 @@
       <section class="card" id="summary" aria-labelledby="summary-title">
         <h2 id="summary-title" class="visually-hidden">サマリー</h2>
         <p id="summary-headline"></p>
+        <p class="period" id="period-duration" data-state="ok"></p>
         <p class="summary-dates" id="summary-dates"></p>
         <div class="tiles">
           <div class="tile" id="tile-weak">
@@ -291,8 +395,94 @@
       <div id="errors" class="alert alert-error" role="alert" hidden></div>
       <div id="warnings" class="alert alert-warn" hidden></div>
 
+      <section class="card" id="sell-panel" aria-labelledby="sell-title">
+        <div class="panel-head">
+          <h2 id="sell-title">売りエントリーの判断材料（事実の集計）</h2>
+          <span class="badge" id="sp-basis" data-basis=""></span>
+        </div>
+        <div id="sp-next-alert" class="alert alert-warn" style="margin:0 0 10px" hidden></div>
+        <p class="notes" id="sp-empty" hidden>A 時点・B 時点を正しく入力すると、集計が表示されます。</p>
+        <div id="sp-body">
+          <div class="sp-grid">
+            <div class="tile" id="tile-sp-end">
+              <div class="tile-label">B 時点の価格</div>
+              <div class="tile-value" id="sp-end">—</div>
+              <div class="tile-sub" id="sp-end-sub"></div>
+            </div>
+            <div class="tile" id="tile-sp-high">
+              <div class="tile-label">期間高値</div>
+              <div class="tile-value" id="sp-high">—</div>
+              <div class="tile-sub" id="sp-high-sub"></div>
+            </div>
+            <div class="tile" id="tile-sp-from-high">
+              <div class="tile-label">B 時点と高値の差</div>
+              <div class="tile-value" id="sp-from-high">—</div>
+              <div class="tile-sub" id="sp-from-high-sub"></div>
+            </div>
+            <div class="tile" id="tile-sp-range">
+              <div class="tile-label">レンジ内位置（安値 0% 〜 高値 100%）</div>
+              <div class="tile-value" id="sp-range-pos">—</div>
+              <div class="meter" id="sp-range-meter" aria-hidden="true"><span class="meter-mark" id="sp-range-mark" style="left:0%"></span></div>
+              <div class="meter-ends"><span id="sp-range-low"></span><span id="sp-range-high"></span></div>
+              <div class="tile-sub" id="sp-range-sub"></div>
+            </div>
+            <div class="tile" id="tile-sp-event">
+              <div class="tile-label">イベント主導の値動き</div>
+              <div class="tile-value" id="sp-event-pips">—</div>
+              <div class="tile-sub" id="sp-event-sub"></div>
+            </div>
+            <div class="tile" id="tile-sp-nonevent">
+              <div class="tile-label">イベント外の値動き</div>
+              <div class="tile-value" id="sp-nonevent-pips">—</div>
+              <div class="tile-sub" id="sp-nonevent-sub">イベント窓の外の合計</div>
+            </div>
+            <div class="tile span-2" id="tile-sp-momentum">
+              <div class="tile-label">B 時点の直前の変化</div>
+              <ul class="mom-list" id="sp-momentum">
+                <li data-minutes="5"><span>直近 5 分</span><strong id="sp-mom-5">—</strong></li>
+                <li data-minutes="15"><span>直近 15 分</span><strong id="sp-mom-15">—</strong></li>
+                <li data-minutes="60"><span>直近 60 分</span><strong id="sp-mom-60">—</strong></li>
+              </ul>
+            </div>
+            <div class="tile span-2" id="tile-sp-next">
+              <div class="tile-label">次の予定イベント</div>
+              <div class="tile-value" id="sp-next" style="font-size:16px">—</div>
+              <div class="tile-sub" id="sp-next-sub"></div>
+            </div>
+          </div>
+
+          <h3>警戒ラインまでの距離（B 時点から）</h3>
+          <ul class="sp-list" id="sp-levels"></ul>
+
+          <h3>各イベントの発表後の伸び・戻り</h3>
+          <div class="table-wrap">
+            <table id="sp-reactions">
+              <caption class="visually-hidden">各イベントの初動、発表後〜B 時点の極値、伸び、極値からの戻り率</caption>
+              <thead>
+                <tr>
+                  <th scope="col">イベント</th>
+                  <th scope="col">時刻</th>
+                  <th scope="col" class="num">初動</th>
+                  <th scope="col" class="num">発表後〜B の極値</th>
+                  <th scope="col" class="num">発表後の伸び</th>
+                  <th scope="col" class="num">極値からの戻り</th>
+                </tr>
+              </thead>
+              <tbody id="sp-reactions-tbody"></tbody>
+            </table>
+          </div>
+          <ul class="sp-notes" id="sp-notes"></ul>
+        </div>
+        <p class="disclaimer" id="disclaimer">本ツールは過去データの集計であり、将来の値動きの予測や売買の推奨ではありません。</p>
+      </section>
+
+      <section class="card" aria-labelledby="price-title">
+        <h2 id="price-title">価格推移（A → B）</h2>
+        <div id="price-chart"></div>
+      </section>
+
       <section class="card" aria-labelledby="chart-title">
-        <h2 id="chart-title">要因分解チャート</h2>
+        <h2 id="chart-title">要因分解チャート（pips）</h2>
         <div id="chart"></div>
       </section>
 
@@ -304,10 +494,11 @@
             <thead>
               <tr>
                 <th scope="col">要因</th>
-                <th scope="col">日付</th>
-                <th scope="col">区分</th>
+                <th scope="col">時刻</th>
+                <th scope="col">重要度</th>
                 <th scope="col">方向</th>
                 <th scope="col" class="num">前 → 後</th>
+                <th scope="col" class="num">寄与（pips）</th>
                 <th scope="col" class="num">寄与（円）</th>
                 <th scope="col" class="num">寄与（%）</th>
                 <th scope="col" class="num">累積</th>
@@ -321,20 +512,24 @@
 
       <section class="card" id="editor" aria-labelledby="editor-title">
         <h2 id="editor-title">データの編集</h2>
-        <p class="notes" style="margin-top:0">値を変更するとチャートとサマリーが即時に再計算されます。</p>
+        <p class="notes" style="margin-top:0">値を変更するとチャートと集計が即時に再計算されます。日時は表示タイムゾーン（<span id="input-tz-label">JST</span>）で入力します。</p>
         <div class="ab-grid">
           <fieldset>
             <legend>A 時点（起点）</legend>
             <div class="pair">
-              <label class="field"><span>日付</span><input type="date" id="start-date"></label>
-              <label class="field"><span>レート（円）</span><input type="number" id="start-rate" step="0.01" inputmode="decimal"></label>
+              <label class="field"><span>日時</span><input type="datetime-local" id="start-time" step="60"></label>
+              <label class="field"><span>レート（円）</span><input type="number" id="start-rate" step="0.001" inputmode="decimal"></label>
             </div>
           </fieldset>
           <fieldset>
             <legend>B 時点（現在）</legend>
             <div class="pair">
-              <label class="field"><span>日付</span><input type="date" id="end-date"></label>
-              <label class="field"><span>レート（円）</span><input type="number" id="end-rate" step="0.01" inputmode="decimal"></label>
+              <label class="field"><span>日時</span><input type="datetime-local" id="end-time" step="60"></label>
+              <label class="field"><span>レート（円）</span><input type="number" id="end-rate" step="0.001" inputmode="decimal"></label>
+            </div>
+            <div class="ab-extra">
+              <button type="button" class="btn" id="end-latest">B 時点を最新に追従</button>
+              <span id="end-latest-hint">価格系列の最後の点を B 時点にします</span>
             </div>
           </fieldset>
         </div>
@@ -342,6 +537,16 @@
         <div class="event-list" id="events-editor"></div>
         <div class="editor-actions">
           <button type="button" class="btn" id="add-event">＋ イベントを追加</button>
+        </div>
+        <h3>予定イベント（B 時点より後）</h3>
+        <div class="event-list" id="upcoming-editor"></div>
+        <div class="editor-actions">
+          <button type="button" class="btn" id="add-upcoming">＋ 予定イベントを追加</button>
+        </div>
+        <h3>警戒ライン</h3>
+        <div class="event-list" id="levels-editor"></div>
+        <div class="editor-actions">
+          <button type="button" class="btn" id="add-level">＋ 警戒ラインを追加</button>
           <button type="button" class="btn" id="reset-dataset">編集を元に戻す</button>
         </div>
       </section>
@@ -349,12 +554,13 @@
       <section class="card notes" id="method-notes" aria-labelledby="notes-title">
         <h2 id="notes-title" style="color:var(--text)">分解手法と限界</h2>
         <ul>
-          <li><strong>イベントの寄与</strong> = イベント直後のレート（後）− 直前のレート（前）。寄与率は A 時点のレートに対する割合で、各要因の寄与率を足すと A→B の変化率に一致します。</li>
-          <li><strong>その他要因</strong> = （B − A）− イベント寄与の合計。イベント窓の外で生じた値動きの合計で、金利差・需給・他のニュースなどを含みます。</li>
+          <li><strong>イベントの寄与</strong> = イベント後のレート（後）− 直前のレート（前）。1 pip = 0.01 円。寄与率は A 時点のレートに対する割合で、各要因の寄与率を足すと A→B の変化率に一致します。</li>
+          <li><strong>その他要因</strong> = （B − A）− イベント寄与の合計。イベント窓の外で生じた値動きの合計で、フロー・他のニュース・時間帯ごとの需給などを含みます。</li>
           <li>イベント窓の値動きには、同じ時間帯に出た他のニュースや指標の影響も含まれます。この分解は<strong>因果関係を厳密に特定するものではありません</strong>。</li>
-          <li>同じ日に前後レートが同一のイベントは 1 本に統合し、二重計上しません。同日で前後レートが異なる場合は警告を表示します（区間が重なると二重計上になる可能性があります）。</li>
-          <li>A 時点より後・B 時点以前（A &lt; 日付 ≦ B）のイベントのみを採用します。</li>
-          <li>価格 CSV（FRED DEXJPUS 形式: <code>observation_date,DEXJPUS</code>）を読み込むと、各イベントの「前」をイベント日より前の直近観測値、「後」をイベント日（なければ次）の観測値で補完します。</li>
+          <li>期間は 5 分以上 5 日以内です。A 時点より後・B 時点以前（A &lt; 時刻 ≦ B）のイベントのみを採用します。同時刻で前後レートが同一のイベントは 1 本に統合し、二重計上しません。</li>
+          <li>価格 CSV を読み込むと、各イベントの「前」をイベント時刻より前の直近の観測、「後」をイベント時刻 + 窓（1〜60 分）以降の最初の観測で補完します。OHLC 足の時刻は始値時刻とみなし、終値の時刻は「始値時刻 + 足の間隔」とします。</li>
+          <li>期間高値・レンジ内位置は B 時点までに観測された値から計算します。<strong>天井は事後にしか確定しません</strong>。価格系列がない場合は A・B とイベント前後の点のみから計算した粗い推定です。</li>
+          <li>本ツールは過去データの集計であり、将来の値動きの予測や売買の推奨ではありません。</li>
         </ul>
         <p class="data-notes" id="dataset-notes"></p>
       </section>
