@@ -16,6 +16,7 @@ CMD ["npm", "test"]
 
 # ---- 配信用ステージ（既定）: docker build . ---------------------------------
 FROM ${NGINX_IMAGE} AS web
+COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 # README.md の中身はデモ銀行の HTML なので、トップページとして配信する
 COPY README.md /usr/share/nginx/html/index.html
 COPY DTE_Bank_wxO.png /usr/share/nginx/html/

@@ -1,16 +1,28 @@
+# Mac（Docker Desktop / OrbStack / colima）で動かすための構成。
+#   起動: ./mac/start.sh（または Finder で mac/start.command をダブルクリック）
+#   停止: ./mac/stop.sh
+#   テスト: ./mac/test.sh
+# 環境変数: PORT（既定 8080）、NGINX_IMAGE（Docker Hub が使えない時のミラー指定）
 services:
   web:
     build:
       context: .
       target: web
+      args:
+        NGINX_IMAGE: ${NGINX_IMAGE:-nginx:1.27-alpine}
+    image: wxo-bank-web:latest
+    container_name: wxo-bank-web
     ports:
-      - "8080:80"
+      - "127.0.0.1:${PORT:-8080}:80"
+    volumes:
+      # データを差し替えたらブラウザの再読み込みだけで反映（再ビルド不要）
+      - ./fx-waterfall/data:/usr/share/nginx/html/fx-waterfall/data:ro
     restart: unless-stopped
 
-  # 使い方: docker compose --profile test run --rm test
   test:
     profiles: ["test"]
     build:
       context: .
       target: test
+    image: wxo-bank-test:latest
     ipc: host
