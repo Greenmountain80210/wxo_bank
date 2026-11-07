@@ -14,6 +14,23 @@ COPY package.json ./package.json
 COPY fx-waterfall ./fx-waterfall
 CMD ["npm", "test"]
 
+# ---- Claude Code 開発用ステージ: docker compose --profile claude ... -------
+# リポジトリを /workspace にマウントし、Claude Code でコードを直接改善するためのコンテナ。
+# Node・Chromium（Playwright 公式イメージ同梱）・git が揃っているので、テストもこの中で実行できる。
+FROM ${PLAYWRIGHT_IMAGE} AS dev
+ARG CLAUDE_CODE_VERSION=2.1.319
+# 公式ドキュメント（Development containers）の推奨: バージョンを固定し、コンテナ内の自動更新を止める
+ENV DISABLE_AUTOUPDATER=1 \
+    CLAUDE_CONFIG_DIR=/home/pwuser/.claude \
+    NODE_PATH=/usr/lib/node_modules
+RUN npm install -g --no-audit --no-fund @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} playwright@1.63.0 \
+ && mkdir -p /home/pwuser/.claude /workspace \
+ && chown -R pwuser:pwuser /home/pwuser/.claude /workspace \
+ && git config --system --add safe.directory /workspace
+USER pwuser
+WORKDIR /workspace
+CMD ["sleep", "infinity"]
+
 # ---- 配信用ステージ（既定）: docker build . ---------------------------------
 FROM ${NGINX_IMAGE} AS web
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf

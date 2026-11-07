@@ -1,8 +1,10 @@
 # Mac（Docker Desktop / OrbStack / colima）で動かすための構成。
-#   起動: ./mac/start.sh（または Finder で mac/start.command をダブルクリック）
-#   停止: ./mac/stop.sh
-#   テスト: ./mac/test.sh
-# 環境変数: PORT（既定 8080）、NGINX_IMAGE（Docker Hub が使えない時のミラー指定）
+#   起動:       ./mac/start.sh   （または Finder で mac/start.command）
+#   停止:       ./mac/stop.sh
+#   テスト:     ./mac/test.sh
+#   Claude Code: ./mac/claude.sh （または Finder で mac/claude.command）
+# 環境変数: PORT（既定 8080）、NGINX_IMAGE（Docker Hub が使えない時のミラー指定）、
+#           ANTHROPIC_API_KEY（任意。未設定なら初回に claude のログイン画面で認証）
 services:
   web:
     build:
@@ -15,9 +17,36 @@ services:
     ports:
       - "127.0.0.1:${PORT:-8080}:80"
     volumes:
-      # データを差し替えたらブラウザの再読み込みだけで反映（再ビルド不要）
-      - ./fx-waterfall/data:/usr/share/nginx/html/fx-waterfall/data:ro
+      # Mac 側の fx-waterfall/ をそのまま配信する。Claude やエディタで直した内容が
+      # ブラウザの再読み込みだけで反映される（再ビルド不要）
+      - ./fx-waterfall:/usr/share/nginx/html/fx-waterfall:ro
     restart: unless-stopped
+
+  # Claude Code でこのリポジトリを直接改善するための開発用コンテナ
+  claude:
+    profiles: ["claude"]
+    build:
+      context: .
+      target: dev
+    image: wxo-bank-claude:latest
+    container_name: wxo-bank-claude
+    # 共有フォルダに書き込めない（Permission denied）環境では CLAUDE_USER=root で起動する
+    user: ${CLAUDE_USER:-pwuser}
+    working_dir: /workspace
+    volumes:
+      - .:/workspace                           # リポジトリ（変更は Mac 側に残る。.git も共有）
+      - claude-config:/home/pwuser/.claude     # ログイン情報・設定を作り直し後も保持
+    environment:
+      - ANTHROPIC_API_KEY                      # Mac 側で設定されていれば引き継ぐ（任意）
+      - GIT_AUTHOR_NAME
+      - GIT_AUTHOR_EMAIL
+      - GIT_COMMITTER_NAME
+      - GIT_COMMITTER_EMAIL
+      - PREVIEW_URL=http://web/fx-waterfall/   # コンテナ内から見た配信中のページ
+    ipc: host
+    init: true
+    stdin_open: true
+    tty: true
 
   test:
     profiles: ["test"]
@@ -26,3 +55,6 @@ services:
       target: test
     image: wxo-bank-test:latest
     ipc: host
+
+volumes:
+  claude-config:

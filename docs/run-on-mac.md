@@ -35,18 +35,37 @@ git checkout claude/fx-waterfall-chart-yen-iq6kfi
 | ブラウザを開かない | `NO_OPEN=1 ./mac/start.sh` | — |
 
 - ポートは `127.0.0.1` にだけ公開するので、同じ Wi-Fi の他の端末からは見えません。
-- `fx-waterfall/data/` はコンテナと共有しているので、データを差し替えたらブラウザの再読み込みだけで反映されます（再ビルド不要）。HTML/JS を変えた場合は `./mac/start.sh` をもう一度実行。
+- `fx-waterfall/` はコンテナと共有しているので、データや HTML/JS を変えたらブラウザの再読み込みだけで反映されます（再ビルド不要）。
 - トップページのチャット（watsonx）はインターネット接続が必要です。要因分解ツールはオフラインでも動きます。
 - zip でダウンロードした場合、`.command` が「開発元を確認できない」と止められることがあります。その時は `xattr -dr com.apple.quarantine mac` を一度実行するか、右クリック →「開く」。
+
+## Claude Code でこのリポジトリを直接改善する
+```sh
+./mac/claude.sh          # または Finder で mac/claude.command
+```
+- Claude Code 入りの開発用コンテナ（`wxo-bank-claude`）を起動し、その中で `claude` を対話モードで開きます。配信コンテナが止まっていれば一緒に起動します。
+- リポジトリは `/workspace` に共有されるので、Claude の変更は Mac 側のファイルに残り、http://localhost:8080/fx-waterfall/ の再読み込みで確認できます。テスト（`npm test`）もコンテナ内でそのまま動きます。
+- **初回ログイン**: 表示された URL を Mac のブラウザで開いて認証し、表示されたコードを貼り付けます。ログイン情報は Docker ボリューム `claude-config` に保存され、次回からは不要です。API キーを使う場合は `export ANTHROPIC_API_KEY=...` してから実行（キーをファイルに書かないこと）。
+- プロジェクトの決まり（出典のない数値を入れない、売買推奨の表現を入れない、テストを通す等）は `CLAUDE.md` に書いてあり、Claude が自動で読み込みます。
+- コミットはコンテナ内でもできますが、**push は Mac 側のターミナルで**行ってください（コンテナに GitHub の認証情報は入れていません）。コミットの作者名は `GIT_AUTHOR_NAME` / `GIT_AUTHOR_EMAIL`（と `GIT_COMMITTER_*`）を Mac で export しておくと引き継がれます。
+
+| 操作 | コマンド |
+|---|---|
+| Claude に 1 回だけ質問 | `./mac/claude.sh -p "テストを実行して結果を要約して"` |
+| コンテナのシェルに入る | `./mac/claude.sh --shell` |
+| Claude Code の版を上げる | `Dockerfile` の `CLAUDE_CODE_VERSION` を変えて `./mac/claude.sh --rebuild` |
+| 書き込みエラー（Permission denied）が出る | `CLAUDE_USER=root ./mac/claude.sh` |
+| ログイン情報も消す | `./mac/stop.sh --all && docker volume rm wxo_bank_claude-config` |
 
 ## 構成ファイル
 | ファイル | 役割 |
 |---|---|
-| `Dockerfile` | `web`（nginx で配信）と `test`（Playwright で全テスト）の 2 段構成 |
+| `Dockerfile` | `web`（nginx で配信）・`test`（全テスト）・`dev`（Claude Code 開発用）の 3 段構成 |
 | `compose.yaml` | ポート・データ共有・ビルド引数の設定 |
 | `docker/nginx.conf` | UTF-8 指定と、ツールのファイルを毎回再検証させる設定 |
 | `.dockerignore` | イメージに入れないファイル |
-| `mac/*.sh`, `mac/*.command` | 起動・停止・テストのスクリプト（macOS 標準の bash 3.2 で動作） |
+| `mac/*.sh`, `mac/*.command` | 起動・停止・テスト・Claude Code のスクリプト（macOS 標準の bash 3.2 で動作） |
+| `CLAUDE.md` | コンテナ内の Claude Code が読むプロジェクトの決まり |
 
 ## compose を直接使う場合
 ```sh

@@ -1,6 +1,6 @@
 #!/bin/bash
 # コンテナを停止して削除する（イメージは残すので次回の起動は速い）。
-#   完全に消す: ./mac/stop.sh --all （イメージも削除）
+#   完全に消す: ./mac/stop.sh --all （イメージも削除。Claude のログイン情報ボリュームは残す）
 set -eu
 # shellcheck source=mac/_common.sh
 . "$(dirname "$0")/_common.sh"
@@ -14,9 +14,9 @@ find_compose
 
 if [ "${1:-}" = "--all" ]; then
   info "コンテナとイメージを削除します"
-  compose --profile test down --rmi all
+  compose --profile test --profile claude down --rmi all
 else
   info "コンテナを停止します"
-  compose down
+  compose --profile claude down
 fi
 info "停止しました"
