@@ -1,0 +1,16 @@
+services:
+  web:
+    build:
+      context: .
+      target: web
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+  # 使い方: docker compose --profile test run --rm test
+  test:
+    profiles: ["test"]
+    build:
+      context: .
+      target: test
+    ipc: host
