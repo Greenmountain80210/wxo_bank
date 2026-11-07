@@ -904,7 +904,10 @@
         var from = it.postTime != null ? it.postTime : it.time;
         var ext = null;
         if (it.direction !== 'neutral') {
-          inRange.forEach(function (p) {
+          // 系列の点に加え、イベント直後(post)と B 時点の値も候補にする
+          // （手入力で post / B のレートを変えた場合や、系列末尾と B がずれる場合でも期間高値・安値と矛盾しない）
+          var cands = inRange.concat([{ time: from, rate: it.post }, { time: endT, rate: endRate }]);
+          cands.forEach(function (p) {
             if (p.time < from) return;
             if (it.direction === 'weak') {
               var hi = p.high != null ? p.high : p.rate;
